@@ -2,12 +2,9 @@ import z from "zod";
 import WebSocket from "ws";
 import {
   joinRoomPayload,
-  leaveRoomPayload,
-  setCurrentStatePayload,
   shapeUpdateEventPayload,
   webSocketMessagePayload,
 } from "../types/zodSchemas";
-import e from "express";
 
 export type RoomId = string;
 type eventType = z.infer<typeof shapeUpdateEventPayload>;
@@ -23,7 +20,7 @@ export default class Room {
   shapes: string[] = [];
 
   addOrDeleteShapeEvents: eventType[] = [];
-  events: eventType[] = [];
+  events: eventType[] = []; // this is not necessary but keeping for ease rn
   perShapeEvents: Record<string, eventType[]> = {};
 
   addPlayer(ws: WebSocket, isOwner = false) {
@@ -137,6 +134,9 @@ export default class Room {
         events: this.events,
       },
     });
+    this.sendMessage(ws, {
+      type: "roomJoined",
+    });
   }
   handleInvalidMessage(ws: WebSocket) {
     this.sendMessage(ws, {
@@ -163,6 +163,7 @@ export default class Room {
     ) {
       this.setInitialEvents(message.payload.events);
       this.roomState = "active";
+      this.sendMessage(ws, { type: "roomJoined" });
       return;
     }
     //
