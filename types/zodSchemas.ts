@@ -1,6 +1,15 @@
 import z from "zod";
 
 const TextShapeState = z.enum(["render", "edit"]);
+const shapeType = z.enum([
+  "arrow",
+  "line",
+  "rect",
+  "rotrect",
+  "pen",
+  "text",
+  "circle",
+]);
 
 const fillStyle = z.enum(["line", "crosslines", "fill"]);
 
@@ -81,11 +90,40 @@ const updatePropertyPayload = z.object({
   curState: TextShapeState.optional(),
 });
 
-const addShapePayload = z.object({
-  shape: z.string(),
-});
-const shapeUpdateEventId = z.string();
 const shapeId = z.string();
+const point = z.object({ x: z.number(), y: z.number() });
+
+const addShapePayload = z.object({
+  shape: z.object({
+    shapeId: shapeId,
+    shapeType: shapeType,
+
+    startX: z.number().optional(),
+    startY: z.number().optional(),
+    endX: z.number().optional(),
+    endY: z.number().optional(),
+    shouldUpdateRectangleBasedOnText: z.boolean().optional(),
+    enclosingRectangle: z.tuple([point, point]).optional(),
+    //styles
+    fillStyle: fillStyle.optional(),
+    strokeStyle: strokeStyle.optional(),
+    arrowType: arrowType.optional(),
+    strokeWidth: strokeWidth.optional(),
+    edgeRadius: edgeRadius.optional(),
+    opacity: opacity.optional(),
+    backgroundColor: backgroundColor.optional(),
+    strokeColor: strokeColor.optional(),
+    fontFamily: fontFamily.optional(),
+    fontSize: fontSize.optional(),
+
+    //properties
+    points: z.array(z.unknown()).optional(),
+    text: z.string().optional(),
+    curState: TextShapeState.optional(),
+  }),
+});
+
+const shapeUpdateEventId = z.string();
 
 const shapeUpdateEventPayload = z.union([
   z.object({

@@ -26,16 +26,27 @@ const handleIncomingMessage = (
 };
 
 wss.on("connection", (ws, req) => {
+  console.log("some guy connected");
   ws.on("message", (networkData, isBinary) => {
     //
     if (!isBinary) {
       let jsonParsedData = JSON.parse(networkData.toString());
 
-      let { success, data } = webSocketMessageSchema.safeParse(jsonParsedData);
-      if (success) handleIncomingMessage(ws, data!);
-      else {
-        // wrong format
+      console.log("received ", jsonParsedData);
+
+      try {
+        let data = webSocketMessageSchema.parse(jsonParsedData);
+        handleIncomingMessage(ws, data!);
+      } catch (error) {
+        console.log(
+          "wrong format data",
+          jsonParsedData,
+          networkData.toString(),
+          error,
+        );
       }
+
+      // wrong format
     } else {
       // wrong format
     }

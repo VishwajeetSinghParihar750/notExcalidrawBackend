@@ -17,14 +17,15 @@ export default class Room {
 
   owner: WebSocket | null;
   players: WebSocket[];
-  shapes: string[] = [];
+  shapes: Set<string> = new Set();
 
-  addOrDeleteShapeEvents: eventType[] = [];
+  addEvents: eventType[] = [];
   events: eventType[] = []; // this is not necessary but keeping for ease rn
   perShapeEvents: Record<string, eventType[]> = {};
 
   addPlayer(ws: WebSocket, isOwner = false) {
     ws.on("close", (code, reason) => {
+      console.log("some guy disconnected");
       this.players = this.players.filter((webs) => webs != ws);
       if (isOwner) {
         this.owner = null;
@@ -36,6 +37,7 @@ export default class Room {
   }
 
   sendMessage(ws: WebSocket, data: any) {
+    console.log("sending : ", data);
     ws.send(JSON.stringify(data));
   }
   setupRoom(ws: WebSocket) {
@@ -57,10 +59,8 @@ export default class Room {
   addNewEvent(event: eventType): string | null {
     let prevEventId;
     if (event.eventType == "addShape") {
-      if (this.addOrDeleteShapeEvents.length > 0)
-        prevEventId =
-          this.addOrDeleteShapeEvents[this.addOrDeleteShapeEvents.length - 1]
-            ._id;
+      if (this.addEvents.length > 0)
+        prevEventId = this.addEvents[this.addEvents.length - 1]._id;
       else prevEventId = null;
     } else {
       prevEventId =
@@ -76,12 +76,12 @@ export default class Room {
     this.perShapeEvents[event.shapeId].push(event);
 
     if (event.eventType == "deleteShape") {
-      this.shapes = this.shapes.filter((shapeid) => shapeid != event.shapeId);
-      this.addOrDeleteShapeEvents.push(event);
+      this.shapes.delete(event.shapeId);
     }
+
     if (event.eventType == "addShape") {
-      this.shapes.push(event.shapeId);
-      this.addOrDeleteShapeEvents.push(event);
+      this.shapes.add(event.shapeId);
+      this.addEvents.push(event);
     }
 
     return prevEventId;
@@ -101,13 +101,13 @@ export default class Room {
   canAddEvent(event: z.infer<typeof shapeUpdateEventPayload>): boolean {
     switch (event.eventType) {
       case "addShape":
-        return this.shapes.find((id) => id == event.shapeId) == null;
+        return !this.shapes.has(event.shapeId);
       case "deleteShape":
-        return this.shapes.find((id) => id == event.shapeId) != null;
+        return this.shapes.has(event.shapeId);
       case "updateEnclosingRectangle":
-        return this.shapes.find((id) => id == event.shapeId) != null;
+        return this.shapes.has(event.shapeId);
       case "updateProperty":
-        return this.shapes.find((id) => id == event.shapeId) != null;
+        return this.shapes.has(event.shapeId);
       default:
         return false;
     }
