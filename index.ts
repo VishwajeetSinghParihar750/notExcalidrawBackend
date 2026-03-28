@@ -27,12 +27,15 @@ const handleIncomingMessage = (
 
 wss.on("connection", (ws, req) => {
   console.log("some guy connected");
+  ws.on("close", (code, reason) => {
+    console.log("some guy disconnected");
+  });
   ws.on("message", (networkData, isBinary) => {
     //
     if (!isBinary) {
       let jsonParsedData = JSON.parse(networkData.toString());
 
-      console.log("received ", jsonParsedData);
+      console.log("received ", networkData.toString());
 
       try {
         let data = webSocketMessageSchema.parse(jsonParsedData);

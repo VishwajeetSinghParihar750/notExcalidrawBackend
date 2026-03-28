@@ -1,10 +1,11 @@
 import z from "zod";
 import WebSocket from "ws";
 import {
-  joinRoomPayload,
+  playerPositionUpdatePayload,
   shapeUpdateEventPayload,
   webSocketMessagePayload,
 } from "../types/zodSchemas";
+import { getRandomPlayerName } from "../utils/playerName";
 
 export type RoomId = string;
 type eventType = z.infer<typeof shapeUpdateEventPayload>;
@@ -16,7 +17,10 @@ export default class Room {
   roomState: RoomState = "closed";
 
   owner: WebSocket | null;
-  players: WebSocket[];
+  players: WebSocket[] = [];
+  playerNames: Record<string, WebSocket> = {};
+  playerCursorPositions: Record<string, { x: number; y: number }> = {};
+
   shapes: Set<string> = new Set();
 
   addEvents: eventType[] = [];
@@ -24,14 +28,35 @@ export default class Room {
   perShapeEvents: Record<string, eventType[]> = {};
 
   addPlayer(ws: WebSocket, isOwner = false) {
+    this.players.push(ws);
+
     ws.on("close", (code, reason) => {
       console.log("some guy disconnected");
+
+      let playerName = null;
+      for (let key in this.playerNames) {
+        if (this.playerNames[key] == ws) {
+          playerName = key;
+          break;
+        }
+      }
+
       this.players = this.players.filter((webs) => webs != ws);
       if (isOwner) {
         this.owner = null;
         if (this.roomState == "waitingForInitEvents") {
           this.roomState = "active"; // careful people might lose local state
         }
+      }
+      if (playerName) {
+        Object.values(this.playerNames).forEach((player) => {
+          this.sendMessage(player, {
+            type: "playerDisconnected",
+            payload: { playerName },
+          });
+        });
+        delete this.playerNames[playerName];
+        delete this.playerCursorPositions[playerName];
       }
     });
   }
@@ -52,17 +77,28 @@ export default class Room {
   constructor(roomId: RoomId, owner: WebSocket) {
     this.roomId = roomId;
     this.owner = owner;
-    this.players = [owner];
+
     this.setupRoom(owner);
   }
 
   addNewEvent(event: eventType): string | null {
     let prevEventId;
     if (event.eventType == "addShape") {
+      if (event.payload.shape.shapeType == "text") {
+        event.payload.shape.curState = "render";
+      }
+
       if (this.addEvents.length > 0)
         prevEventId = this.addEvents[this.addEvents.length - 1]._id;
       else prevEventId = null;
     } else {
+      // make this more robust check for text specifically
+      if (
+        event.eventType == "updateProperty" &&
+        event.payload.curState == "edit"
+      )
+        event.payload.curState = "render";
+
       prevEventId =
         this.perShapeEvents[event.shapeId][
           this.perShapeEvents[event.shapeId].length - 1
@@ -126,16 +162,64 @@ export default class Room {
       });
   }
 
-  handleJoinRoom(ws: WebSocket, payload: z.infer<typeof joinRoomPayload>) {
+  assignNameToWebsocket(ws: WebSocket): string {
+    let newPlayerName = getRandomPlayerName();
+    while (this.playerNames[newPlayerName]) {
+      newPlayerName = getRandomPlayerName();
+    }
+    this.playerCursorPositions[newPlayerName] = { x: 0, y: 0 };
+    this.playerNames[newPlayerName] = ws;
+    return newPlayerName;
+  }
+
+  handlePlayerPositionUpdate(
+    ws: WebSocket,
+    payload: z.infer<typeof playerPositionUpdatePayload>,
+  ) {
+    let playerName = Object.keys(this.playerNames).find(
+      (key) => this.playerNames[key] == ws,
+    );
+
+    console.log(Object.keys(this.playerNames));
+    console.log(playerName);
+    if (!playerName) return;
+
+    Object.keys(this.playerNames).forEach((player) => {
+      if (ws != this.playerNames[player]) {
+        this.sendMessage(this.playerNames[player], {
+          type: "playerPositionUpdate",
+          payload: {
+            playerName: playerName,
+            playerPosition: payload.playerPosition,
+          },
+        });
+      } else {
+        this.playerCursorPositions[player] = payload.playerPosition;
+      }
+    });
+  }
+
+  handleJoinRoom(ws: WebSocket) {
     this.addPlayer(ws);
     this.sendMessage(ws, {
       type: "setCurrentState",
       payload: {
         events: this.events,
+        players: Object.keys(this.playerCursorPositions).map((key) => {
+          return {
+            playerName: key,
+            playerPosition: this.playerCursorPositions[key],
+          };
+        }),
       },
     });
+
+    let newPlayerName = this.assignNameToWebsocket(ws);
     this.sendMessage(ws, {
       type: "roomJoined",
+      payload: {
+        playerName: newPlayerName,
+      },
     });
   }
   handleInvalidMessage(ws: WebSocket) {
@@ -152,6 +236,7 @@ export default class Room {
       this.addNewEvent(ev);
     });
   }
+
   handleMessage(
     ws: WebSocket,
     message: z.infer<typeof webSocketMessagePayload>,
@@ -163,7 +248,12 @@ export default class Room {
     ) {
       this.setInitialEvents(message.payload.events);
       this.roomState = "active";
-      this.sendMessage(ws, { type: "roomJoined" });
+
+      let newPlayerName = this.assignNameToWebsocket(ws);
+      this.sendMessage(ws, {
+        type: "roomJoined",
+        payload: { playerName: newPlayerName },
+      });
       return;
     }
     //
@@ -182,9 +272,11 @@ export default class Room {
         this.handleEvent(ws, message.payload);
         break;
       case "joinRoom":
-        this.handleJoinRoom(ws, message.payload);
+        this.handleJoinRoom(ws);
         break;
-
+      case "playerPositionUpdate":
+        this.handlePlayerPositionUpdate(ws, message.payload);
+        break;
       default:
         this.handleInvalidMessage(ws);
         break;
