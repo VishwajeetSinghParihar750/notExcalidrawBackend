@@ -13,13 +13,28 @@ const handleIncomingMessage = (
   message: z.infer<typeof webSocketMessageSchema>,
 ) => {
   let roomId = message.roomId;
-  if (!rooms[roomId]) {
-    if (message.payload.type == "joinRoom") {
-      rooms[roomId] = new Room(roomId, ws);
-    } else {
-      // invalid
-      // return from here
-    }
+  if (!roomId && message.payload.type == "createRoom") {
+    let newRoomId = crypto.randomUUID();
+    while (rooms[newRoomId]) newRoomId = crypto.randomUUID();
+
+    rooms[newRoomId] = new Room(newRoomId, ws);
+    return;
+  } else if (roomId && !rooms[roomId]) {
+    ws.send(
+      JSON.stringify({
+        type: "clientError",
+        payload: { message: "roomDoesNotExist" },
+      }),
+    );
+    return;
+  } else if (!roomId) {
+    ws.send(
+      JSON.stringify({
+        type: "clientError",
+        payload: { message: "invalidRequest" },
+      }),
+    );
+    return;
   }
 
   rooms[roomId].handleMessage(ws, message.payload);
@@ -46,6 +61,12 @@ wss.on("connection", (ws, req) => {
           jsonParsedData,
           networkData.toString(),
           error,
+        );
+        ws.send(
+          JSON.stringify({
+            type: "clientError",
+            payload: { message: "invalidRequest" },
+          }),
         );
       }
 

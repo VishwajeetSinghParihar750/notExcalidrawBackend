@@ -69,6 +69,9 @@ export default class Room {
     this.addPlayer(ws, true);
     this.sendMessage(ws, {
       type: "getCurrentState",
+      payload: {
+        roomId: this.roomId,
+      },
     });
 
     this.roomState = "waitingForInitEvents";
@@ -214,11 +217,11 @@ export default class Room {
       },
     });
 
-    let newPlayerName = this.assignNameToWebsocket(ws);
+    this.assignNameToWebsocket(ws);
     this.sendMessage(ws, {
       type: "roomJoined",
       payload: {
-        playerName: newPlayerName,
+        roomId: this.roomId,
       },
     });
   }
@@ -226,7 +229,7 @@ export default class Room {
     this.sendMessage(ws, {
       type: "clientError",
       payload: {
-        message: "invalid request",
+        message: "invalidRequest",
       },
     });
   }
@@ -249,10 +252,12 @@ export default class Room {
       this.setInitialEvents(message.payload.events);
       this.roomState = "active";
 
-      let newPlayerName = this.assignNameToWebsocket(ws);
+      this.assignNameToWebsocket(ws);
       this.sendMessage(ws, {
         type: "roomJoined",
-        payload: { playerName: newPlayerName },
+        payload: {
+          roomId: this.roomId,
+        },
       });
       return;
     }
@@ -261,7 +266,7 @@ export default class Room {
       this.sendMessage(ws, {
         type: "serverError",
         payload: {
-          message: `room is in ${this.roomState} state`,
+          message: "roomNotActive",
         },
       });
       return;
@@ -271,6 +276,7 @@ export default class Room {
       case "addEvent":
         this.handleEvent(ws, message.payload);
         break;
+
       case "joinRoom":
         this.handleJoinRoom(ws);
         break;

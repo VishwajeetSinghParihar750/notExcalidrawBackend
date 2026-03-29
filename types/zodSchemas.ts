@@ -169,8 +169,15 @@ const playerPosition = z.object({
 
 const joinRoomSchema = z.object({
   type: z.literal("joinRoom"),
-  payload: z.any().optional(),
+  payload: z.object({
+    roomId: z.string(),
+  }),
 });
+
+const createRoomSchema = z.object({
+  type: z.literal("createRoom"),
+});
+
 const getCurrentStateSchema = z.object({
   type: z.literal("getCurrentState"),
 });
@@ -196,10 +203,11 @@ const webSocketMessagePayload = z.union([
   setCurrentStateSchema,
   leaveRoomSchema,
   playerPositionUpdateSchema,
+  createRoomSchema,
 ]);
 // schema for ws full message
 const webSocketMessageSchema = z.object({
-  roomId: z.string(),
+  roomId: z.union([z.string(), z.null()]),
   payload: webSocketMessagePayload,
 });
 
@@ -213,6 +221,7 @@ export {
 
 export {
   webSocketMessageSchema,
+  createRoomSchema,
   playerPositionUpdateSchema,
   addEventSchema,
   joinRoomSchema,
