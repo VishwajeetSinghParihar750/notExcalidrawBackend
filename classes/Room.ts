@@ -16,6 +16,7 @@ export default class Room {
   roomId: RoomId;
   roomState: RoomState = "closed";
 
+  onCloseCallback: (roomId: RoomId) => void;
   owner: WebSocket | null;
   players: WebSocket[] = [];
   playerNames: Record<string, WebSocket> = {};
@@ -34,6 +35,7 @@ export default class Room {
       console.log("some guy disconnected");
 
       let playerName = null;
+
       for (let key in this.playerNames) {
         if (this.playerNames[key] == ws) {
           playerName = key;
@@ -57,6 +59,11 @@ export default class Room {
         });
         delete this.playerNames[playerName];
         delete this.playerCursorPositions[playerName];
+
+        if (this.players.length == 0) {
+          this.roomState = "closed";
+          this.onCloseCallback(this.roomId);
+        }
       }
     });
   }
@@ -77,7 +84,13 @@ export default class Room {
     this.roomState = "waitingForInitEvents";
   }
 
-  constructor(roomId: RoomId, owner: WebSocket) {
+  constructor(
+    roomId: RoomId,
+    owner: WebSocket,
+    onCloseCb: (roomId: RoomId) => void,
+  ) {
+    this.onCloseCallback = onCloseCb;
+
     this.roomId = roomId;
     this.owner = owner;
 
@@ -183,8 +196,6 @@ export default class Room {
       (key) => this.playerNames[key] == ws,
     );
 
-    console.log(Object.keys(this.playerNames));
-    console.log(playerName);
     if (!playerName) return;
 
     Object.keys(this.playerNames).forEach((player) => {

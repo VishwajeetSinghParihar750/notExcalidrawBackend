@@ -8,6 +8,18 @@ const wss = new WebSocketServer({ port: 3001 });
 
 const rooms: Record<RoomId, Room> = {};
 
+const handleRoomClosed = (roomId: RoomId) => {
+  setTimeout(
+    () => {
+      if (rooms[roomId].roomState == "closed") {
+        // someone might reopen it, so checking
+        delete rooms[roomId];
+      }
+    },
+    5 * 60 * 1000,
+  ); // 5 mins
+};
+
 const handleIncomingMessage = (
   ws: WebSocket,
   message: z.infer<typeof webSocketMessageSchema>,
@@ -17,7 +29,7 @@ const handleIncomingMessage = (
     let newRoomId = crypto.randomUUID();
     while (rooms[newRoomId]) newRoomId = crypto.randomUUID();
 
-    rooms[newRoomId] = new Room(newRoomId, ws);
+    rooms[newRoomId] = new Room(newRoomId, ws, handleRoomClosed);
     return;
   } else if (roomId && !rooms[roomId]) {
     ws.send(
