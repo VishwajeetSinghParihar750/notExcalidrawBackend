@@ -32,7 +32,7 @@ export default class Room {
     this.players.push(ws);
 
     ws.on("close", (code, reason) => {
-      console.log("some guy disconnected");
+      // console.log("some guy disconnected");
 
       let playerName = null;
 
@@ -69,7 +69,7 @@ export default class Room {
   }
 
   sendMessage(ws: WebSocket, data: any) {
-    console.log("sending : ", data);
+    // console.log("sending : ", data);
     ws.send(JSON.stringify(data));
   }
   setupRoom(ws: WebSocket) {

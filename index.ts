@@ -53,27 +53,27 @@ const handleIncomingMessage = (
 };
 
 wss.on("connection", (ws, req) => {
-  console.log("some guy connected");
+  // console.log("some guy connected");
   ws.on("close", (code, reason) => {
-    console.log("some guy disconnected");
+    // console.log("some guy disconnected");
   });
   ws.on("message", (networkData, isBinary) => {
     //
     if (!isBinary) {
       let jsonParsedData = JSON.parse(networkData.toString());
 
-      console.log("received ", networkData.toString());
+      // console.log("received ", networkData.toString());
 
       try {
         let data = webSocketMessageSchema.parse(jsonParsedData);
         handleIncomingMessage(ws, data!);
       } catch (error) {
-        console.log(
-          "wrong format data",
-          jsonParsedData,
-          networkData.toString(),
-          error,
-        );
+        // console.log(
+        //   "wrong format data",
+        //   jsonParsedData,
+        //   networkData.toString(),
+        //   error,
+        // );
         ws.send(
           JSON.stringify({
             type: "clientError",
