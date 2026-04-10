@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = require("ws");
 const zodSchemas_1 = require("./types/zodSchemas");
 const Room_1 = __importDefault(require("./classes/Room"));
-const wss = new ws_1.WebSocketServer({ port: 3001 });
+const wss = new ws_1.WebSocketServer({ port: +process.env.PORT });
 const rooms = {};
 const handleRoomClosed = (roomId) => {
     setTimeout(() => {
