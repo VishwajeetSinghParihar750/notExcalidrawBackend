@@ -4,7 +4,9 @@ import { webSocketMessageSchema } from "./types/zodSchemas";
 import Room from "./classes/Room";
 import type { RoomId } from "./classes/Room";
 
-const wss = new WebSocketServer({ port: +process.env.PORT! });
+const wss = new WebSocketServer({
+  port: process.env.PORT ? +process.env.PORT : 3001,
+});
 
 const rooms: Record<RoomId, Room> = {};
 
